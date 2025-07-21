@@ -1,0 +1,19 @@
+{
+  "profileName": "Firefox in Germany on 3G",
+  "browser": "firefox",
+  "config": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:102.0) Gecko/20100101 Firefox/102.0",
+    "viewport": { "width": 1280, "height": 720 },
+    "locale": "de-DE",
+    "timezoneId": "Europe/Berlin",
+    "permissions": ["geolocation"],
+    "geolocation": { "longitude": 13.4050, "latitude": 52.5200 },
+    "defaultBrowserType": "firefox"
+  },
+  "network": {
+    "offline": false,
+    "downloadThroughput": 76800,
+    "uploadThroughput": 32000,
+    "latency": 200
+  }
+}

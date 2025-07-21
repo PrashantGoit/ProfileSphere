@@ -1,0 +1,26 @@
+{
+  "name": "browser-lab-cli",
+  "version": "0.1.0",
+  "description": "A CLI tool to test web applications under diverse, simulated browser environments.",
+  "main": "index.js",
+  "bin": {
+    "browser-lab": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "playwright",
+    "testing",
+    "qa",
+    "automation",
+    "browser"
+  ],
+  "author": "DevEnvArchitectGPT",
+  "license": "MIT",
+  "dependencies": {
+    "playwright": "^1.44.0",
+    "yargs": "^17.7.2"
+  }
+}

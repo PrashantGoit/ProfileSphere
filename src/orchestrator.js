@@ -8,11 +8,9 @@ async function runTest(profile, url, options) {
         const resultsDir = createResultsDir();
         const testOptions = { ...options, resultsDir };
         console.log(`Running test for profile: ${profile.name}...`);
-        const { screenshotPath, harPath } = await browserEngine.launchTest(profile, url, testOptions);
+        await browserEngine.launchTest(profile, url, testOptions);
 
         console.log(`Test complete for profile: ${profile.name}. Results saved to: ${resultsDir}`);
-        if (screenshotPath) console.log(`- Screenshot: ${screenshotPath}`);
-        if (harPath) console.log(`- HAR: ${harPath}`);
     } catch (error) {
         console.error(`Test failed for profile: ${profile.name}. Error: ${error.message}`);
     }

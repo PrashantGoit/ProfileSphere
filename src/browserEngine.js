@@ -1,53 +1,52 @@
-const playwright = require('playwright');
+const { chromium, firefox, webkit } = require('playwright');
+const path = require('path');
+const fs = require('fs/promises'); // Add fs
 
+/**
+ * Launches a browser with the specified profile, runs the test, and saves artifacts.
+ * @param {object} profile - The loaded profile object.
+ * @param {string} url - The target URL.
+ * @param {string} resultsDir - The directory to save results in.
+ */
 async function launchTest(profile, url, options) {
-    const browserType = profile.browser || 'chromium';
-    const browser = await playwright[browserType].launch({
-        headless: options.headless,
-    });
-    const contextOptions = {
-        ...profile.config,
-        recordVideo: options.recordVideo ? { dir: options.resultsDir } : undefined,
-    };
-    const context = await browser.newContext(contextOptions);
-    const page = await context.newPage();
+  const { resultsDir } = options;
+  const browserType = { chromium, firefox, webkit }[profile.browser];
+  if (!browserType) {
+    throw new Error(`Unsupported browser type in profile: "${profile.browser}"`);
+  }
 
-    if (options.offline) {
-        await context.setOffline(true);
-    }
+  const browser = await browserType.launch({ headless: options.headless });
+  const context = await browser.newContext(profile.config);
+  const page = await context.newPage();
 
-    const resultsDir = options.resultsDir;
-    let harPath;
-    // HAR is not applicable in offline mode
-    if (options.har && !options.offline) {
-        harPath = `${resultsDir}/trace.har`;
-        await context.tracing.start({ name: 'trace', screenshots: true, snapshots: true });
-    }
+  // --- NEW: FINGERPRINT INJECTION LOGIC ---
+  if (profile.fingerprint) {
+    console.log('> Applying fingerprint modifications...');
+    let injectorScript = await fs.readFile(path.join(__dirname, 'fingerprint-injector.js'), 'utf-8');
+    
+    // Pass fingerprint data from the profile into the script
+    const fingerprintArgs = JSON.stringify(profile.fingerprint);
+    injectorScript = injectorScript.replace('/* FINGERPRINT_ARGS_PLACEHOLDER */', fingerprintArgs);
+    
+    await page.addInitScript({ content: injectorScript });
+  }
 
-    const waitUntil = options.offline ? 'load' : 'networkidle';
-    try {
-        await page.goto(url, { waitUntil });
-    } catch (error) {
-        if (options.offline) {
-            console.log(`(Offline mode) Navigation to ${url} failed as expected. Capturing screenshot of the result.`);
-        } else {
-            // Stop tracing on error before re-throwing
-            if (harPath) {
-                await context.tracing.stop({ path: harPath });
-            }
-            throw error;
-        }
-    }
+  // Apply network conditions (currently for Chromium only via CDP)
+  if (profile.network && profile.browser === 'chromium') {
+    console.log('> Applying network emulation...');
+    const client = await page.context().newCDPSession(page);
+    await client.send('Network.emulateNetworkConditions', profile.network);
+  }
 
-    if (harPath) {
-        await context.tracing.stop({ path: harPath });
-    }
+  console.log(`> Navigating to ${url}...`);
+  await page.goto(url, { waitUntil: 'networkidle' });
+  console.log('> Page loaded.');
 
-    const screenshotPath = `${resultsDir}/screenshot.png`;
-    await page.screenshot({ path: screenshotPath, fullPage: true });
+  const screenshotPath = path.join(resultsDir, 'screenshot.png');
+  console.log('> Taking screenshot...');
+  await page.screenshot({ path: screenshotPath, fullPage: true });
 
-    await browser.close();
-    return { screenshotPath, harPath };
+  await browser.close();
 }
 
 module.exports = { launchTest };

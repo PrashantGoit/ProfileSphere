@@ -1,13 +1,7 @@
 const { chromium, firefox, webkit } = require('playwright');
 const path = require('path');
-const fs = require('fs/promises'); // Add fs
+const fs = require('fs/promises');
 
-/**
- * Launches a browser with the specified profile, runs the test, and saves artifacts.
- * @param {object} profile - The loaded profile object.
- * @param {string} url - The target URL.
- * @param {string} resultsDir - The directory to save results in.
- */
 async function launchTest(profile, url, options) {
   const { resultsDir } = options;
   const browserType = { chromium, firefox, webkit }[profile.browser];
@@ -17,14 +11,17 @@ async function launchTest(profile, url, options) {
 
   const browser = await browserType.launch({ headless: options.headless });
   const context = await browser.newContext(profile.config);
+
+  // *** NEW: Start tracing for HAR file ***
+  await context.tracing.start({ screenshots: false, snapshots: false });
+
   const page = await context.newPage();
 
-  // --- NEW: FINGERPRINT INJECTION LOGIC ---
+  // --- FINGERPRINT INJECTION LOGIC ---
   if (profile.fingerprint) {
     console.log('> Applying fingerprint modifications...');
     let injectorScript = await fs.readFile(path.join(__dirname, 'fingerprint-injector.js'), 'utf-8');
     
-    // Pass fingerprint data from the profile into the script
     const fingerprintArgs = JSON.stringify(profile.fingerprint);
     injectorScript = injectorScript.replace('/* FINGERPRINT_ARGS_PLACEHOLDER */', fingerprintArgs);
     
@@ -46,7 +43,15 @@ async function launchTest(profile, url, options) {
   console.log('> Taking screenshot...');
   await page.screenshot({ path: screenshotPath, fullPage: true });
 
+  // *** NEW: Stop tracing and save the HAR file ***
+  const harPath = path.join(resultsDir, 'network.har');
+  console.log('> Saving network HAR file...');
+  await context.tracing.stop({ path: harPath });
+
   await browser.close();
+
+  // Return artifact paths for the report
+  return { screenshotPath, harPath };
 }
 
 module.exports = { launchTest };
